@@ -12,10 +12,9 @@ type passwordService struct {
 	masterPasswordHash string
 }
 
-func NewPasswordService(repo repository.PasswordRepository, masterPasswordHash string) *passwordService {
+func NewPasswordService(repo repository.PasswordRepository) PasswordService {
 	return &passwordService{
-		repo:               repo,
-		masterPasswordHash: masterPasswordHash,
+		repo: repo,
 	}
 }
 
@@ -57,7 +56,7 @@ func (s *passwordService) AddPassword(site, username, password string) error {
 	return s.repo.Save(store)
 }
 
-func (s *passwordService) GetPassword(site string) error {
+func (s *passwordService) GetPassword(site string) (*models.PasswordEntry, error) {
 	store, err := s.repo.Load()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load store: %w", err)
@@ -72,13 +71,18 @@ func (s *passwordService) GetPassword(site string) error {
 	return nil, fmt.Errorf("no password found for this site: %s", site)
 }
 
-func (s *passwordService) ListPassword() (*[]models.PasswordEntry, error) {
+func (s *passwordService) ListPassword() ([]*models.PasswordEntry, error) {
 	store, err := s.repo.Load()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load store: %w", err)
 	}
 
-	return &store.Entries, nil
+	// Convert to slice of pointers
+	result := make([]*models.PasswordEntry, len(store.Entries))
+	for i := range store.Entries {
+		result[i] = &store.Entries[i]
+	}
+	return result, nil
 }
 
 func (s *passwordService) UpdatePassword(site, username, password string) error {
