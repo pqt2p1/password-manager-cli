@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/pqt2p1/password-manager-cli/internal/repository"
 	"github.com/pqt2p1/password-manager-cli/internal/service"
+	"github.com/pqt2p1/password-manager-cli/pkg/ui"
 	"golang.org/x/term"
 	"os"
 	"path/filepath"
@@ -39,8 +40,7 @@ func main() {
 }
 
 func askMasterPassword() (string, error) {
-	fmt.Print("Enter master password: ")
-
+	fmt.Print(ui.PasswordPrompt())
 	// Hide password input
 	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
@@ -54,7 +54,8 @@ func askMasterPassword() (string, error) {
 
 func handleAdd(svc service.PasswordService) {
 	if len(os.Args) < 5 {
-		fmt.Println("Usage: password-manager add <site> <username> <password>")
+		fmt.Println(ui.ErrorMsg("Usage: password-manager add <site> <username> <password>"))
+		return
 	}
 
 	site := os.Args[2]
@@ -63,80 +64,89 @@ func handleAdd(svc service.PasswordService) {
 
 	masterPass, err := askMasterPassword()
 	if err != nil {
-		fmt.Printf("Failed to get master password: %s\n", err)
+		fmt.Println(ui.ErrorMsg(fmt.Sprintf("Failed to get master password: %s\n", err)))
 		return
 	}
 
 	if err := svc.SetMasterPassword(masterPass); err != nil {
-		fmt.Printf("Failed to set master password: %s\n", err)
+		fmt.Println(ui.ErrorMsg(fmt.Sprintf("Failed to set master password: %s\n", err)))
 		return
 	}
 
 	if err := svc.AddPassword(site, username, password); err != nil {
-		fmt.Printf("Error adding password: %v\n", err)
+		fmt.Println(ui.ErrorMsg(fmt.Sprintf("Error adding password: %s\n", err)))
 		return
 	}
 
-	fmt.Printf("Password added successfully for %s@%s\n", username, site)
-
+	fmt.Println(ui.SuccessMsg(fmt.Sprintf("Password added successfully for %s@%s\n", username, site)))
 }
 
 func handleGet(svc service.PasswordService) {
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: password-manager get <site>")
+		fmt.Println(ui.ErrorMsg("Usage: password-manager get <site>"))
 	}
 
 	site := os.Args[2]
 
 	masterPass, err := askMasterPassword()
 	if err != nil {
-		fmt.Printf("Failed to get master password: %s\n", err)
+		fmt.Println(ui.ErrorMsg("Failed to get master password: %s\n"))
 		return
 	}
 
 	if err := svc.SetMasterPassword(masterPass); err != nil {
-		fmt.Printf("Failed to set master password: %s\n", err)
+		fmt.Println(ui.ErrorMsg("Failed to set master password: %s\n"))
 		return
 	}
 
 	entry, err := svc.GetPassword(site)
 	if err != nil {
-		fmt.Printf("Error getting password: %v\n", err)
+		fmt.Println(ui.ErrorMsg("Error getting password: %v\n"))
 		return
 	}
 
-	fmt.Printf("Site: %s\nUsername: %s\nPassword: %s\n", site, entry.Username, entry.Password)
+	fmt.Println(ui.SuccessMsg(fmt.Sprintf("Site: %s\nUsername: %s\nPassword: %s\n", site, entry.Username, entry.Password)))
+
 }
 
 func handleList(svc service.PasswordService) {
-
 	masterPass, err := askMasterPassword()
 	if err != nil {
-		fmt.Printf("Failed to get master password: %s\n", err)
+		fmt.Println(ui.ErrorMsg("Failed to get master password: %s\n"))
 		return
 	}
 
 	if err := svc.SetMasterPassword(masterPass); err != nil {
-		fmt.Printf("Failed to set master password: %s\n", err)
+		fmt.Println(ui.ErrorMsg("Failed to set master password: %s\n"))
 		return
 	}
 
 	entries, err := svc.ListPassword()
 	if err != nil {
-		fmt.Printf("Error listing passwords: %v\n", err)
+		fmt.Println(ui.ErrorMsg("Error listing passwords: %v\n"))
 		return
 	}
 
 	if len(entries) == 0 {
+		fmt.Println(ui.ErrorMsg("No password entries found"))
 		fmt.Println("No password entries found")
 		return
 	}
 
-	fmt.Println("Stored passwords:")
-	fmt.Println("==================")
-	for _, entry := range entries {
-		fmt.Printf("Site: %s  | Username: %s | Password: %s | Created: %s\n", entry.Site, entry.Username, entry.Password, entry.CreatedAt)
+	fmt.Println(ui.Bold("\n📋 Stored Passwords"))
+	fmt.Println(ui.Bold("=================="))
+
+	for i, entry := range entries {
+		fmt.Printf("%s %s | %s | %s | %s\n",
+			ui.Info(fmt.Sprintf("%d.", i+1)),
+			ui.Bold(entry.Site),
+			ui.Success(entry.Username),
+			ui.Warning(entry.Password),
+			ui.Info(entry.CreatedAt.Format("2006-01-02")),
+		)
 	}
+
+	fmt.Printf("\n%s\n", ui.InfoMsg(fmt.Sprintf("Total: %d entries", len(entries))))
 }
 
 func printUsage() {
