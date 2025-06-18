@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"github.com/pqt2p1/password-manager-cli/internal/repository"
 	"github.com/pqt2p1/password-manager-cli/internal/service"
+	"golang.org/x/term"
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 func main() {
@@ -36,6 +38,20 @@ func main() {
 
 }
 
+func askMasterPassword() (string, error) {
+	fmt.Print("Enter master password: ")
+
+	// Hide password input
+	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Println()
+	return string(bytePassword), nil
+
+}
+
 func handleAdd(svc service.PasswordService) {
 	if len(os.Args) < 5 {
 		fmt.Println("Usage: password-manager add <site> <username> <password>")
@@ -45,12 +61,14 @@ func handleAdd(svc service.PasswordService) {
 	username := os.Args[3]
 	password := os.Args[4]
 
-	masterPass := "temp123"
-
-	fmt.Printf("🔑 Using master password: %s\n", masterPass) // DEBUG
+	masterPass, err := askMasterPassword()
+	if err != nil {
+		fmt.Printf("Failed to get master password: %s\n", err)
+		return
+	}
 
 	if err := svc.SetMasterPassword(masterPass); err != nil {
-		fmt.Printf("Error setting master password: %v\n", err)
+		fmt.Printf("Failed to set master password: %s\n", err)
 		return
 	}
 
@@ -70,11 +88,14 @@ func handleGet(svc service.PasswordService) {
 
 	site := os.Args[2]
 
-	masterPass := "temp123"
-	fmt.Printf("🔑 Using master password: %s\n", masterPass) // DEBUG
+	masterPass, err := askMasterPassword()
+	if err != nil {
+		fmt.Printf("Failed to get master password: %s\n", err)
+		return
+	}
 
 	if err := svc.SetMasterPassword(masterPass); err != nil {
-		fmt.Printf("Error setting master password: %v\n", err)
+		fmt.Printf("Failed to set master password: %s\n", err)
 		return
 	}
 
@@ -89,11 +110,14 @@ func handleGet(svc service.PasswordService) {
 
 func handleList(svc service.PasswordService) {
 
-	masterPass := "temp123"
-	fmt.Printf("🔑 Using master password: %s\n", masterPass) // DEBUG
+	masterPass, err := askMasterPassword()
+	if err != nil {
+		fmt.Printf("Failed to get master password: %s\n", err)
+		return
+	}
 
 	if err := svc.SetMasterPassword(masterPass); err != nil {
-		fmt.Printf("Error setting master password: %v\n", err)
+		fmt.Printf("Failed to set master password: %s\n", err)
 		return
 	}
 
