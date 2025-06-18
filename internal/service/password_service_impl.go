@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/pqt2p1/password-manager-cli/internal/models"
 	"github.com/pqt2p1/password-manager-cli/internal/repository"
+	"github.com/pqt2p1/password-manager-cli/pkg/crypto"
 	"time"
 )
 
@@ -49,8 +50,14 @@ func (s *passwordService) AddPassword(site, username, password string) error {
 		}
 	}
 
-	newEntry := models.NewPasswordEntry(site, username, password)
+	// ENCRYPT PASSWORD
+	encryptedPassword, err := crypto.Encrypt(password, s.masterPasswordHash)
+	if err != nil {
+		return fmt.Errorf("password encrypt failed")
+	}
 
+	// Create entry với encrypted password
+	newEntry := models.NewPasswordEntry(site, username, encryptedPassword)
 	store.Entries = append(store.Entries, *newEntry)
 
 	return s.repo.Save(store)
@@ -64,7 +71,14 @@ func (s *passwordService) GetPassword(site string) (*models.PasswordEntry, error
 
 	for i := range store.Entries {
 		if store.Entries[i].Site == site {
-			return &store.Entries[i], nil
+			// DECRYPT PASSWORD
+			decryptPassword, err := crypto.Decrypt(store.Entries[i].Password, s.masterPasswordHash)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decrypt password: %w", err)
+			}
+			decryptedEntry := store.Entries[i]
+			decryptedEntry.Password = decryptPassword
+			return &decryptedEntry, nil
 		}
 	}
 
@@ -80,7 +94,16 @@ func (s *passwordService) ListPassword() ([]*models.PasswordEntry, error) {
 	// Convert to slice of pointers
 	result := make([]*models.PasswordEntry, len(store.Entries))
 	for i := range store.Entries {
-		result[i] = &store.Entries[i]
+		// Decrypt each password
+		decryptedPassword, err := crypto.Decrypt(store.Entries[i].Password, s.masterPasswordHash)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt password: %w", err)
+		}
+
+		// Create decrypted entry
+		decryptedEntry := store.Entries[i]
+		decryptedEntry.Password = decryptedPassword
+		result[i] = &decryptedEntry
 	}
 	return result, nil
 }
@@ -94,7 +117,12 @@ func (s *passwordService) UpdatePassword(site, username, password string) error 
 	found := false
 	for i := range store.Entries {
 		if store.Entries[i].Site == site && store.Entries[i].Username == username {
-			store.Entries[i].Password = password
+			// Encrypt Password
+			encryptedPassword, err := crypto.Encrypt(password, s.masterPasswordHash)
+			if err != nil {
+				return fmt.Errorf("failed to encrypt password: %w", err)
+			}
+			store.Entries[i].Password = encryptedPassword
 			store.Entries[i].UpdatedAt = time.Now()
 			found = true
 			break

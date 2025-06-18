@@ -13,7 +13,6 @@ func main() {
 		printUsage()
 		return
 	}
-
 	// Setup dependencies
 	homeDir, _ := os.UserHomeDir()
 	repoPath := filepath.Join(homeDir, ".password-manager", "passwords.json")
@@ -47,6 +46,9 @@ func handleAdd(svc service.PasswordService) {
 	password := os.Args[4]
 
 	masterPass := "temp123"
+
+	fmt.Printf("🔑 Using master password: %s\n", masterPass) // DEBUG
+
 	if err := svc.SetMasterPassword(masterPass); err != nil {
 		fmt.Printf("Error setting master password: %v\n", err)
 		return
@@ -68,16 +70,33 @@ func handleGet(svc service.PasswordService) {
 
 	site := os.Args[2]
 
+	masterPass := "temp123"
+	fmt.Printf("🔑 Using master password: %s\n", masterPass) // DEBUG
+
+	if err := svc.SetMasterPassword(masterPass); err != nil {
+		fmt.Printf("Error setting master password: %v\n", err)
+		return
+	}
+
 	entry, err := svc.GetPassword(site)
 	if err != nil {
 		fmt.Printf("Error getting password: %v\n", err)
 		return
 	}
 
-	fmt.Println("Site: %s\nUsername: %s\nPassword: %s\n", site, entry.Username, entry.Password)
+	fmt.Printf("Site: %s\nUsername: %s\nPassword: %s\n", site, entry.Username, entry.Password)
 }
 
 func handleList(svc service.PasswordService) {
+
+	masterPass := "temp123"
+	fmt.Printf("🔑 Using master password: %s\n", masterPass) // DEBUG
+
+	if err := svc.SetMasterPassword(masterPass); err != nil {
+		fmt.Printf("Error setting master password: %v\n", err)
+		return
+	}
+
 	entries, err := svc.ListPassword()
 	if err != nil {
 		fmt.Printf("Error listing passwords: %v\n", err)
@@ -92,7 +111,7 @@ func handleList(svc service.PasswordService) {
 	fmt.Println("Stored passwords:")
 	fmt.Println("==================")
 	for _, entry := range entries {
-		fmt.Printf("Site: %s  | Username: %s  | Created: %s\n", entry.Site, entry.Username, entry.CreatedAt)
+		fmt.Printf("Site: %s  | Username: %s | Password: %s | Created: %s\n", entry.Site, entry.Username, entry.Password, entry.CreatedAt)
 	}
 }
 
