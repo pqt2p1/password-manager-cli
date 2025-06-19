@@ -32,6 +32,8 @@ func main() {
 		handleGet(svc)
 	case "list":
 		handleList(svc)
+	case "delete":
+		handleDelete(svc)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printUsage()
@@ -84,6 +86,7 @@ func handleAdd(svc service.PasswordService) {
 func handleGet(svc service.PasswordService) {
 	if len(os.Args) < 3 {
 		fmt.Println(ui.ErrorMsg("Usage: password-manager get <site>"))
+		return
 	}
 
 	site := os.Args[2]
@@ -149,6 +152,48 @@ func handleList(svc service.PasswordService) {
 	fmt.Printf("\n%s\n", ui.InfoMsg(fmt.Sprintf("Total: %d entries", len(entries))))
 }
 
+func handleDelete(svc service.PasswordService) {
+	if len(os.Args) < 3 {
+		fmt.Println(ui.ErrorMsg("Usage: password-manager delete <site>"))
+		return
+	}
+
+	site := os.Args[2]
+
+	// Confirm deletion
+	fmt.Printf(ui.Warning("⚠️  Delete password for %s? (y/N): "), ui.Bold(site))
+	var confirm string
+	_, err := fmt.Scanln(&confirm)
+	if err != nil {
+		fmt.Println(ui.ErrorMsg("Invalid input"))
+		return
+	}
+
+	if confirm != "y" && confirm != "Y" {
+		fmt.Println(ui.InfoMsg("Deletion cancelled"))
+		return
+	}
+
+	masterPass, err := askMasterPassword()
+	if err != nil {
+		fmt.Println(ui.ErrorMsg(fmt.Sprintf("Failed to get master password: %v", err)))
+		return
+	}
+
+	if err := svc.SetMasterPassword(masterPass); err != nil {
+		fmt.Println(ui.ErrorMsg(fmt.Sprintf("Failed to get master password: %v", err)))
+		return
+	}
+
+	// Delete the password
+	if err := svc.DeletePassword(site); err != nil {
+		fmt.Println(ui.ErrorMsg(fmt.Sprintf("Failed to delete master password: %v", err)))
+		return
+	}
+
+	fmt.Println(ui.SuccessMsg(fmt.Sprintf("Password for %s deleted successfully!", site)))
+}
+
 func printUsage() {
 	fmt.Println("Password Manager CLI")
 	fmt.Println("====================")
@@ -158,7 +203,7 @@ func printUsage() {
 	fmt.Println("  password-manager list")
 	fmt.Println("")
 	fmt.Println("Examples:")
-	fmt.Println("  password-manager add github.com john mypassword123")
+	fmt.Println("  password-manager add github.com john")
 	fmt.Println("  password-manager get github.com")
 	fmt.Println("  password-manager list")
 }
